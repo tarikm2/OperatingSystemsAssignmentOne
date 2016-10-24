@@ -1,0 +1,7 @@
+this is a sample test file
+we can search for the word tarik there should be 5 occurances
+tarik tarik
+tarik next line is the last
+tarik
+there should be 37 words 
+there should be 7 lines
