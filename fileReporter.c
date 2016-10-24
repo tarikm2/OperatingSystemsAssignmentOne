@@ -5,8 +5,8 @@
 #include <assert.h>
 
 //Declarations
-void* CountWords(void* args);
-FILE* GetChecksum(char* fileName);
+void* CountWords(void*);
+void* GetChecksum(void*);
 FILE* CountOccurances(char* fileName, char* toFind);
 
 struct wc_results {
@@ -21,41 +21,45 @@ int main(int argc, char *argv[]) {
 	pthread_t p1, p2, p3;
 	
 	//result values for thread creation
-	int wcThreadRes;
-	int gcThreadRes;
-	int coThreadRes;
+	int threadRes;
 
 	struct wc_results *wcValues;
+	char* mdsumValues = malloc(sizeof(char) * 32);
 	
 	//input values
 	char* fileName = argv[1];
 	char* searchTerm = argv[2];	
 
 	//create a thread for each task
-	wcThreadRes = pthread_create(&p1, NULL, &CountWords, fileName);
-	assert(wcThreadRes == 0);
+	threadRes = pthread_create(&p1, NULL, &CountWords, fileName);
+	assert(threadRes == 0);
+	
+	threadRes = pthread_create(&p2, NULL, &GetChecksum, fileName);
+	assert(threadRes == 0);
 
 	//join the threads
 	pthread_join(p1,(void*) &wcValues);
+	pthread_join(p2, (void*) &mdsumValues);
 
 	//display the results
-	printf("(WC: lines= %d words=%d chars=%d\n",
+	printf("(WC): lines= %d words=%d chars=%d\n",
 		wcValues -> lines,
 		wcValues -> words,
 		wcValues -> chars);
-	printf("(MD5SUM): not implemented\n");
+
+	printf("(MD5SUM): %s\n", mdsumValues);
 	printf("(WRDCNT): not implemented\n");
 	
 	return 1;	
-
 }
 
 /*
- * CountWords accepts a reference to three integers and a 
+ * CountWords accepts a reference to a
  * file name, calls wc to count the words, lines and chars 
- * in the file, and saves the result in the three integers
+ * in the file, and returns the rusult in the wc_results sruct.
 */ 
 void* CountWords(void* args) {
+
 	//the file to save our command line results i
 	char* fileName = (char*) args;
 	//return value
@@ -85,9 +89,7 @@ void* CountWords(void* args) {
 
 	toReturn->lines = lines;
 	toReturn->words = words;
-	toReturn->chars = chars;
-	
-	printf("just after gathering input\n");	
+	toReturn->chars = chars;	
 
 	//close filestream
 	if(pclose(fp) == -1) 
@@ -96,9 +98,32 @@ void* CountWords(void* args) {
 	return (void*) toReturn;
 }
 
+/*
+ * GetChecksum accpts a file name, calls md5sdum 
+ * to generate a checksum, and then returns this 
+ * checksum.
+ */
+void* GetChecksum(void* args) {
+	//the file name to generate checksum for
+	char* fileName = (char*) args;
+	char* toReturn = malloc(sizeof(char) * 32);	
 
-FILE* GetChecksum(char* fileName) {
+	//generate the command to call
+	char command[strlen(fileName + 7)];
+	strcpy(command, "md5sum ");
+	strcat(command, fileName);
+	
+	//call the command 	
+	FILE* fp;
+	fp = popen(command, "r");	
+	assert(fp != NULL);
+	
+	//get the result of md5sum command into toReturn
+	fscanf(fp, "%s", toReturn); 
+	
+	//close the file
+	assert(fclose(fp) != -1);
 
-	return NULL;
+	return (void*) toReturn;
 }
 
