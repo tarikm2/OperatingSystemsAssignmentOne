@@ -1,3 +1,16 @@
+/*
+ * Assignment 1 for Opperating systems
+ * Oct. 27, 2016
+ * Tarik Merzouk
+ *
+ * This program creates three threads to call
+ * wc, grep-c and md5sum on the passed command
+ * line arguments.
+ * sample input:
+ * ./fileReporter testfile.txt tarik
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,23 +22,31 @@ void* CountWords(void*);
 void* GetChecksum(void*);
 void* CountOccurances(void*);
 
+//struct for async wc command result
 struct wc_results {
 	int lines;
 	int words;
 	int chars;
 };
 
+//command for async grep -c arguments
 struct occ_args {
 	char* toSearch;
 	char* fileName;
 };
 
+/*
+ * the entry point for this program.
+ * calls creates 3 threads for running
+ * commands wc, grep -c and md5sum on 
+ * arguments file.txt, wordToSearch in argv[]
+ */
 int main(int argc, char *argv[]) {
 
 	//threads for processing the file
 	pthread_t p1, p2, p3;
 	
-	//result values for thread creation
+	//result and params for thread calls
 	int threadRes;
 
 	struct wc_results *wcValues;
@@ -33,10 +54,11 @@ int main(int argc, char *argv[]) {
 	int* searchOccurances;
 	struct occ_args occArgs;		
 
-	//input values
+	//command line inputs
 	char* fileName = argv[1];
 	char* searchTerm = argv[2];	
 	
+	//prep the grep-c command params
 	occArgs.toSearch = searchTerm;
 	occArgs.fileName = fileName;
 
@@ -44,6 +66,7 @@ int main(int argc, char *argv[]) {
 	threadRes = pthread_create(&p1, NULL, &CountWords, fileName);
 	assert(threadRes == 0);
 	
+	//create the three threads
 	threadRes = pthread_create(&p2, NULL, &GetChecksum, fileName);
 	assert(threadRes == 0);
 
@@ -62,9 +85,8 @@ int main(int argc, char *argv[]) {
 		wcValues -> chars);
 
 	printf("(MD5SUM): %s\n", mdsumValues);
-	printf("(WRDCNT): COUNT OF \"%s\"=%d\n", searchTerm, *searchOccurances);
-	
-	
+	printf("(WRDCNT): COUNT OF \"%s\"=%d\n", searchTerm, *searchOccurances);	
+
 	return 1;	
 }
 
@@ -143,9 +165,11 @@ void* GetChecksum(void* args) {
 }
 
 void* CountOccurances(void* args) {
+	//convert args to struct
 	struct occ_args *arguments =  (struct occ_args*) args;
 	int* toReturn = malloc(sizeof(int));
-
+	
+	//create the command
 	char command[strlen(arguments->toSearch)
 		   + strlen(arguments->fileName) + 9];
 
@@ -154,13 +178,17 @@ void* CountOccurances(void* args) {
 	strcat(command, "\" ");
 	strcat(command, arguments->fileName);
 	
+	//call the command and store result in filestream
 	FILE* fp;
 	fp = popen(command, "r");
 	assert(fp != NULL);
 	
+	//get result of command
 	fscanf(fp, "%d", toReturn);
-
+	
+	//assert successfull file closure
 	assert(fclose(fp) != -1);
 
 	return (void*) toReturn;
 }
+
