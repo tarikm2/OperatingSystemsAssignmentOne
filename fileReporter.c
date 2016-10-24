@@ -7,12 +7,17 @@
 //Declarations
 void* CountWords(void*);
 void* GetChecksum(void*);
-FILE* CountOccurances(char* fileName, char* toFind);
+void* CountOccurances(void*);
 
 struct wc_results {
 	int lines;
 	int words;
 	int chars;
+};
+
+struct occ_args {
+	char* toSearch;
+	char* fileName;
 };
 
 int main(int argc, char *argv[]) {
@@ -25,10 +30,15 @@ int main(int argc, char *argv[]) {
 
 	struct wc_results *wcValues;
 	char* mdsumValues = malloc(sizeof(char) * 32);
-	
+	int* searchOccurances;
+	struct occ_args occArgs;		
+
 	//input values
 	char* fileName = argv[1];
 	char* searchTerm = argv[2];	
+	
+	occArgs.toSearch = searchTerm;
+	occArgs.fileName = fileName;
 
 	//create a thread for each task
 	threadRes = pthread_create(&p1, NULL, &CountWords, fileName);
@@ -37,9 +47,13 @@ int main(int argc, char *argv[]) {
 	threadRes = pthread_create(&p2, NULL, &GetChecksum, fileName);
 	assert(threadRes == 0);
 
+	threadRes = pthread_create(&p3, NULL, &CountOccurances, (void*) &occArgs);
+	assert(threadRes == 0);
+	
 	//join the threads
 	pthread_join(p1,(void*) &wcValues);
 	pthread_join(p2, (void*) &mdsumValues);
+	pthread_join(p3, (void*) &searchOccurances);
 
 	//display the results
 	printf("(WC): lines= %d words=%d chars=%d\n",
@@ -48,7 +62,8 @@ int main(int argc, char *argv[]) {
 		wcValues -> chars);
 
 	printf("(MD5SUM): %s\n", mdsumValues);
-	printf("(WRDCNT): not implemented\n");
+	printf("(WRDCNT): COUNT OF \"%s\"=%d\n", searchTerm, *searchOccurances);
+	
 	
 	return 1;	
 }
@@ -127,3 +142,25 @@ void* GetChecksum(void* args) {
 	return (void*) toReturn;
 }
 
+void* CountOccurances(void* args) {
+	struct occ_args *arguments =  (struct occ_args*) args;
+	int* toReturn = malloc(sizeof(int));
+
+	char command[strlen(arguments->toSearch)
+		   + strlen(arguments->fileName) + 9];
+
+	strcpy(command, "grep -c \"");
+	strcat(command, arguments->toSearch);
+	strcat(command, "\" ");
+	strcat(command, arguments->fileName);
+	
+	FILE* fp;
+	fp = popen(command, "r");
+	assert(fp != NULL);
+	
+	fscanf(fp, "%d", toReturn);
+
+	assert(fclose(fp) != -1);
+
+	return (void*) toReturn;
+}
